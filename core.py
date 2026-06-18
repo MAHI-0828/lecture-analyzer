@@ -2,12 +2,13 @@
 Shared analysis logic — used by both the CLI (analyze.py) and the Streamlit app (app.py).
 """
 
-import base64
+import io
 import json
 import re
 from pathlib import Path
 
-import anthropic
+import google.generativeai as genai
+from PIL import Image
 
 # ─── Parameter registry ─────────────────────────────────────────────────────────
 
@@ -105,54 +106,28 @@ Scoring rubrics:
 
 # ─── Image helpers ───────────────────────────────────────────────────────────────
 
-def encode_image_file(image_path: Path) -> tuple:
-    """Return (base64_string, media_type) for an image file."""
-    suffix = image_path.suffix.lower()
-    media_types = {
-        ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
-        ".png": "image/png", ".gif": "image/gif", ".webp": "image/webp",
-    }
-    media_type = media_types.get(suffix, "image/png")
-    with open(image_path, "rb") as f:
-        data = base64.standard_b64encode(f.read()).decode("utf-8")
-    return data, media_type
+def load_image_file(image_path: Path) -> Image.Image:
+    return Image.open(image_path)
 
 
-def encode_image_bytes(file_bytes: bytes, filename: str) -> tuple:
-    """Return (base64_string, media_type) for raw bytes (used by Streamlit uploader)."""
-    suffix = Path(filename).suffix.lower()
-    media_types = {
-        ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
-        ".png": "image/png", ".gif": "image/gif", ".webp": "image/webp",
-    }
-    media_type = media_types.get(suffix, "image/png")
-    data = base64.standard_b64encode(file_bytes).decode("utf-8")
-    return data, media_type
+def load_image_bytes(file_bytes: bytes) -> Image.Image:
+    return Image.open(io.BytesIO(file_bytes))
 
 
 # ─── Analysis ────────────────────────────────────────────────────────────────────
 
-def analyze_image(client: anthropic.Anthropic, image_data: str, media_type: str) -> dict:
-    """Send an image to Claude and return the structured JSON result."""
-    response = client.messages.create(
-        model="claude-sonnet-4-6",
-        max_tokens=4096,
-        system=SYSTEM_PROMPT,
-        messages=[{
-            "role": "user",
-            "content": [
-                {
-                    "type": "image",
-                    "source": {"type": "base64", "media_type": media_type, "data": image_data},
-                },
-                {
-                    "type": "text",
-                    "text": "Analyze this lecture screenshot and return the JSON evaluation.",
-                },
-            ],
-        }],
+def analyze_image(api_key: str, pil_image: Image.Image) -> dict:
+    """Send an image to Gemini and return the structured JSON result."""
+    genai.configure(api_key=api_key)
+    model = genai.GenerativeModel(
+        model_name="gemini-2.0-flash",
+        system_instruction=SYSTEM_PROMPT,
     )
-    raw = response.content[0].text.strip()
+    response = model.generate_content([
+        "Analyze this lecture screenshot and return the JSON evaluation.",
+        pil_image,
+    ])
+    raw = response.text.strip()
     raw = re.sub(r"^```(?:json)?\s*", "", raw)
     raw = re.sub(r"\s*```$", "", raw)
     return json.loads(raw)

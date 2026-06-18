@@ -4,11 +4,10 @@ import json
 from datetime import datetime
 
 import streamlit as st
-import anthropic
 
 from core import (
     PARAMETERS, PARAMETER_LABELS,
-    encode_image_bytes, analyze_image,
+    load_image_bytes, analyze_image,
     build_csv_rows, aggregate_scores,
 )
 
@@ -91,11 +90,11 @@ with col_l:
     batch_name = st.text_input("Batch Name", placeholder="e.g. DS-Batch-12")
     lecture_module = st.text_input("Lecture Module", placeholder="e.g. Module-3-SQL-Joins")
     api_key = st.text_input(
-        "Anthropic API Key",
+        "Google AI Studio API Key",
         type="password",
-        placeholder="sk-ant-... (or set ANTHROPIC_API_KEY env var)",
+        placeholder="AIza... (or set GOOGLE_API_KEY env var)",
     )
-    st.caption("The key is only used during this session and never stored.")
+    st.caption("Free key from aistudio.google.com — never stored.")
 
 with col_r:
     st.subheader("Upload Screenshots")
@@ -132,12 +131,11 @@ if not ready and not analyze_btn:
 
 if analyze_btn and ready:
     import os
-    key = api_key or os.environ.get("ANTHROPIC_API_KEY", "")
+    key = api_key or os.environ.get("GOOGLE_API_KEY", "")
     if not key:
-        st.error("No API key provided. Enter it above or set the ANTHROPIC_API_KEY environment variable.")
+        st.error("No API key provided. Enter it above or set the GOOGLE_API_KEY environment variable.")
         st.stop()
 
-    client = anthropic.Anthropic(api_key=key)
     results = []
 
     progress_bar = st.progress(0, text="Starting analysis...")
@@ -147,8 +145,8 @@ if analyze_btn and ready:
         status_area.markdown(f"Analyzing **{uploaded_file.name}** ({i+1}/{len(uploaded_files)})…")
         try:
             file_bytes = uploaded_file.read()
-            image_data, media_type = encode_image_bytes(file_bytes, uploaded_file.name)
-            result = analyze_image(client, image_data, media_type)
+            pil_image  = load_image_bytes(file_bytes)
+            result = analyze_image(key, pil_image)
             result["screenshot"]  = uploaded_file.name
             result["analyzed_at"] = datetime.now().isoformat()
             results.append(result)

@@ -11,11 +11,9 @@ import argparse
 from pathlib import Path
 from datetime import datetime
 
-import anthropic
-
 from core import (
     PARAMETERS, PARAMETER_LABELS,
-    encode_image_file, analyze_image,
+    load_image_file, analyze_image,
     build_csv_rows, aggregate_scores,
 )
 
@@ -101,6 +99,7 @@ def main():
     parser.add_argument("--video",   "-v",                 help="Video file — auto-extracts frames via ffmpeg")
     parser.add_argument("--frames",  type=int, default=10, help="Frames to extract from video (default: 10)")
     parser.add_argument("--output",  "-o",                 help="Output directory (default: same as --folder)")
+    parser.add_argument("--api-key", "-k",                 help="Google AI Studio API key (or set GOOGLE_API_KEY env var)")
     args = parser.parse_args()
 
     folder     = Path(args.folder)
@@ -121,14 +120,19 @@ def main():
         sys.exit(1)
     print(f"Found {len(images)} screenshots. Starting analysis...\n")
 
-    client  = anthropic.Anthropic()
+    import os
+    api_key = args.api_key or os.environ.get("GOOGLE_API_KEY", "")
+    if not api_key:
+        print("Error: provide --api-key or set GOOGLE_API_KEY environment variable.")
+        sys.exit(1)
+
     results = []
 
     for i, img_path in enumerate(images, 1):
         print(f"  [{i}/{len(images)}] {img_path.name} ...", end=" ", flush=True)
         try:
-            image_data, media_type = encode_image_file(img_path)
-            analysis = analyze_image(client, image_data, media_type)
+            pil_image = load_image_file(img_path)
+            analysis  = analyze_image(api_key, pil_image)
             analysis["screenshot"]  = img_path.name
             analysis["analyzed_at"] = datetime.now().isoformat()
             results.append(analysis)
