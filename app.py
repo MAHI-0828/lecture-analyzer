@@ -6,7 +6,7 @@ from datetime import datetime
 import streamlit as st
 
 from core import (
-    PARAMETERS, PARAMETER_LABELS,
+    PARAMETERS, MAJOR_PARAMETERS, MINOR_PARAMETERS, PARAMETER_LABELS,
     load_image_bytes, load_image_file, analyze_image,
     build_csv_rows, aggregate_scores,
 )
@@ -198,58 +198,47 @@ if "report" in st.session_state:
 
     st.markdown("---")
 
-    # Group into camera, content, and hygiene sections
-    groups = {
-        "Camera & Instructor": [
-            "camera_angle", "face_lighting", "background_quality",
-            "appearance", "instructor_energy",
-        ],
-        "Screen & Content": [
-            "screen_share_active", "content_type", "slide_text_density",
-            "visual_first_design", "slide_template_consistency",
-            "code_readability", "annotation_activity",
-        ],
-        "Session Hygiene": [
-            "chat_panel_visible", "desktop_notifications",
-            "dual_screen_evidence", "agenda_slide_present",
-        ],
-    }
-
-    for group_name, params in groups.items():
-        st.markdown(f"**{group_name}**")
+    def render_param_group(title, params, averages):
+        st.markdown(f"**{title}**")
         cols = st.columns(len(params))
         for col, param in zip(cols, params):
             avg = averages.get(param)
             label = PARAMETER_LABELS[param]
-            short_label = label.replace(" & ", "/").replace("Annotation / Whiteboard Activity", "Annotation")
+            short = label.replace("Annotation / Whiteboard Activity", "Annotation").replace("Content Type on Screen", "Live Coding")
             if avg is not None:
-                col.metric(
-                    short_label,
-                    f"{avg:.1f}",
-                    delta=None,
-                    help=label,
-                )
+                col.metric(short, f"{avg:.1f}", help=label)
                 col.markdown(
                     f'<div style="height:6px;border-radius:3px;background:{score_color(avg)};'
                     f'width:{int(avg/5*100)}%"></div>',
                     unsafe_allow_html=True,
                 )
             else:
-                col.metric(short_label, "N/A", help=label)
+                col.metric(short, "N/A", help=label)
         st.markdown("")
 
-    # Flags
-    flagged = [(PARAMETER_LABELS[p], v) for p, v in averages.items()
-               if v is not None and v < 3.5]
-    flagged.sort(key=lambda x: x[1])
-    if flagged:
+    st.markdown("#### 🔴 Major Checks")
+    render_param_group("", MAJOR_PARAMETERS, averages)
+
+    st.markdown("#### 🔵 Minor Checks")
+    render_param_group("", MINOR_PARAMETERS, averages)
+
+    # Flags — major first
+    flagged_major = [(PARAMETER_LABELS[p], averages[p]) for p in MAJOR_PARAMETERS
+                     if averages.get(p) is not None and averages[p] < 3.5]
+    flagged_minor = [(PARAMETER_LABELS[p], averages[p]) for p in MINOR_PARAMETERS
+                     if averages.get(p) is not None and averages[p] < 3.5]
+
+    if flagged_major or flagged_minor:
         st.markdown("---")
         st.markdown("**🚩 Parameters needing attention (avg < 3.5)**")
-        for label, avg in flagged:
-            st.markdown(
-                f'<div class="flag-row">⚠️ <b>{label}</b> — {avg:.1f}/5</div>',
-                unsafe_allow_html=True,
-            )
+        if flagged_major:
+            st.markdown("*Major:*")
+            for label, avg in sorted(flagged_major, key=lambda x: x[1]):
+                st.markdown(f'<div class="flag-row">⚠️ <b>{label}</b> — {avg:.1f}/5</div>', unsafe_allow_html=True)
+        if flagged_minor:
+            st.markdown("*Minor:*")
+            for label, avg in sorted(flagged_minor, key=lambda x: x[1]):
+                st.markdown(f'<div class="flag-row">⚠️ <b>{label}</b> — {avg:.1f}/5</div>', unsafe_allow_html=True)
 
     # ── Per-screenshot breakdown ─────────────────────────────────────────────────
 

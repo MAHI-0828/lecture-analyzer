@@ -13,24 +13,29 @@ from PIL import Image
 
 # ─── Parameter registry ─────────────────────────────────────────────────────────
 
-PARAMETERS = [
+MAJOR_PARAMETERS = [
     "camera_angle",
     "face_lighting",
     "background_quality",
     "appearance",
+    "content_type",
+    "chat_panel_visible",
+]
+
+MINOR_PARAMETERS = [
     "instructor_energy",
     "screen_share_active",
-    "content_type",
     "slide_text_density",
     "visual_first_design",
     "slide_template_consistency",
     "code_readability",
     "annotation_activity",
-    "chat_panel_visible",
     "desktop_notifications",
     "dual_screen_evidence",
     "agenda_slide_present",
 ]
+
+PARAMETERS = MAJOR_PARAMETERS + MINOR_PARAMETERS
 
 PARAMETER_LABELS = {
     "camera_angle":               "Camera Angle",
