@@ -35,10 +35,12 @@ def best_texts(results, param):
     entries = []
     for r in results:
         data = r.get("scores", {}).get(param, {})
+        if not isinstance(data, dict):
+            continue
         s = data.get("score")
         o = data.get("observation", "")
         i = data.get("improvement", "")
-        if s is not None and o and o != "Not applicable in this screenshot.":
+        if isinstance(s, (int, float)) and o and o != "Not applicable in this screenshot.":
             entries.append((s, o, i))
     if not entries:
         return "", ""

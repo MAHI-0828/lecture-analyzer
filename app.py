@@ -263,6 +263,8 @@ if "report" in st.session_state:
 
             for param in PARAMETERS:
                 data = r.get("scores", {}).get(param, {})
+                if not isinstance(data, dict):
+                    continue
                 score = data.get("score")
                 obs   = data.get("observation", "")
                 imp   = data.get("improvement", "")
