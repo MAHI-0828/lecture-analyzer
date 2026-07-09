@@ -79,7 +79,11 @@ YAMM_COLUMN_MAP = {
     "lecture_title":    "Lecture Title",
 }
 
-DATE_FORMATS = ("%Y-%m-%d", "%m/%d/%Y", "%d/%m/%Y", "%d-%b-%Y")
+# Confirmed against live data: Raw Data's date column is DD/MM/YYYY (e.g.
+# "08/07/2026" = 8 July 2026), not US-style MM/DD/YYYY — try it first, since
+# both are often ambiguously "valid" for a given string and the wrong one
+# parses silently instead of falling through.
+DATE_FORMATS = ("%Y-%m-%d", "%d/%m/%Y", "%m/%d/%Y", "%d-%b-%Y")
 
 
 def get_credentials():
