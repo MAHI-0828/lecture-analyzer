@@ -49,7 +49,13 @@ DAILY_REPORT_TAB = "Daily Report"
 YAMM_REPORT_TAB  = "YAMM Report"
 PDF_LINKS_TAB    = "PDF_Links"
 
-DATE_CELL = f"{DAILY_REPORT_TAB}!B1"
+
+def sheet_range(tab, a1_range):
+    """Quote the tab name for A1 notation — required whenever it contains spaces."""
+    return f"'{tab}'!{a1_range}"
+
+
+DATE_CELL = sheet_range(DAILY_REPORT_TAB, "B1")
 RECALC_WAIT_SECONDS = 3  # let Daily Report -> YAMM Report's FILTER formulas refresh
 
 PDF_LINKS_HEADER = ["date", "session_id", "instructor_email", "lecture_title", "drive_link"]
@@ -94,7 +100,7 @@ def parse_sheet_date(value):
 
 def read_raw_data(sheets_service, sheet_id, target_date):
     resp = sheets_service.spreadsheets().values().get(
-        spreadsheetId=sheet_id, range=f"{RAW_DATA_TAB}!A:Z"
+        spreadsheetId=sheet_id, range=sheet_range(RAW_DATA_TAB, "A:Z")
     ).execute()
     values = resp.get("values", [])
     if not values:
@@ -133,7 +139,7 @@ def set_report_date(sheets_service, sheet_id, target_date_str):
 
 def read_yamm_report(sheets_service, sheet_id):
     resp = sheets_service.spreadsheets().values().get(
-        spreadsheetId=sheet_id, range=f"{YAMM_REPORT_TAB}!A:Z"
+        spreadsheetId=sheet_id, range=sheet_range(YAMM_REPORT_TAB, "A:Z")
     ).execute()
     values = resp.get("values", [])
     if not values:
@@ -179,7 +185,7 @@ def ensure_tab_exists(sheets_service, sheet_id, tab, header):
         body={"requests": [{"addSheet": {"properties": {"title": tab}}}]},
     ).execute()
     sheets_service.spreadsheets().values().update(
-        spreadsheetId=sheet_id, range=f"{tab}!A1",
+        spreadsheetId=sheet_id, range=sheet_range(tab, "A1"),
         valueInputOption="RAW", body={"values": [header]},
     ).execute()
 
@@ -188,7 +194,7 @@ def rewrite_pdf_links(sheets_service, sheet_id, target_date_str, new_rows):
     ensure_tab_exists(sheets_service, sheet_id, PDF_LINKS_TAB, PDF_LINKS_HEADER)
 
     resp = sheets_service.spreadsheets().values().get(
-        spreadsheetId=sheet_id, range=f"{PDF_LINKS_TAB}!A:E"
+        spreadsheetId=sheet_id, range=sheet_range(PDF_LINKS_TAB, "A:E")
     ).execute()
     values = resp.get("values", [])
     header = values[0] if values else PDF_LINKS_HEADER
@@ -198,10 +204,10 @@ def rewrite_pdf_links(sheets_service, sheet_id, target_date_str, new_rows):
     updated = [header] + kept + new_rows
 
     sheets_service.spreadsheets().values().clear(
-        spreadsheetId=sheet_id, range=f"{PDF_LINKS_TAB}!A:Z"
+        spreadsheetId=sheet_id, range=sheet_range(PDF_LINKS_TAB, "A:Z")
     ).execute()
     sheets_service.spreadsheets().values().update(
-        spreadsheetId=sheet_id, range=f"{PDF_LINKS_TAB}!A1",
+        spreadsheetId=sheet_id, range=sheet_range(PDF_LINKS_TAB, "A1"),
         valueInputOption="RAW", body={"values": updated},
     ).execute()
 
