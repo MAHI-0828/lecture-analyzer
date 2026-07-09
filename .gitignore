@@ -9,6 +9,7 @@ env/
 # Output reports (don't commit generated files)
 *.json
 *.csv
+!.claude/launch.json
 
 # API keys / secrets
 .env
