@@ -44,15 +44,17 @@ SCOPES = [
     "https://www.googleapis.com/auth/drive.file",
 ]
 
-RAW_DATA_TAB     = "Raw Data"
+RAW_DATA_TAB     = "Raw Data'"  # yes, the sheet's real tab name has a trailing apostrophe
 DAILY_REPORT_TAB = "Daily Report"
 YAMM_REPORT_TAB  = "YAMM Report"
 PDF_LINKS_TAB    = "PDF_Links"
 
 
 def sheet_range(tab, a1_range):
-    """Quote the tab name for A1 notation — required whenever it contains spaces."""
-    return f"'{tab}'!{a1_range}"
+    """Quote the tab name for A1 notation — required for spaces, and any literal
+    apostrophe in the name must itself be doubled inside the quotes."""
+    escaped = tab.replace("'", "''")
+    return f"'{escaped}'!{a1_range}"
 
 
 DATE_CELL = sheet_range(DAILY_REPORT_TAB, "B1")
