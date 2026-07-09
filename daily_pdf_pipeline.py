@@ -120,12 +120,16 @@ def read_raw_data(sheets_service, sheet_id, target_date):
         )
 
     rows = [dict(zip(header, raw)) for raw in values[1:]]
-    matched = [r for r in rows if parse_sheet_date(r.get(COLUMN_MAP["date"])) == target_date]
+    parsed = [parse_sheet_date(r.get(COLUMN_MAP["date"])) for r in rows]
+    matched = [r for r, d in zip(rows, parsed) if d == target_date]
 
     print(f"  {RAW_DATA_TAB}: {len(rows)} total row(s), {len(matched)} matching {target_date}.")
     if rows and not matched:
-        sample = [r.get(COLUMN_MAP["date"]) for r in rows[:5]]
-        print(f"  Sample raw '{COLUMN_MAP['date']}' values (unparsed): {sample}")
+        valid_dates = [d for d in parsed if d is not None]
+        if valid_dates:
+            print(f"  Parsed date range: {min(valid_dates)} to {max(valid_dates)} ({len(valid_dates)}/{len(rows)} parsed).")
+        print(f"  First 5 raw '{COLUMN_MAP['date']}' values: {[r.get(COLUMN_MAP['date']) for r in rows[:5]]}")
+        print(f"  Last 5 raw '{COLUMN_MAP['date']}' values: {[r.get(COLUMN_MAP['date']) for r in rows[-5:]]}")
 
     return matched
 
