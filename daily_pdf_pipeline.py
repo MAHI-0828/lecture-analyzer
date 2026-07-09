@@ -120,7 +120,14 @@ def read_raw_data(sheets_service, sheet_id, target_date):
         )
 
     rows = [dict(zip(header, raw)) for raw in values[1:]]
-    return [r for r in rows if parse_sheet_date(r.get(COLUMN_MAP["date"])) == target_date]
+    matched = [r for r in rows if parse_sheet_date(r.get(COLUMN_MAP["date"])) == target_date]
+
+    print(f"  {RAW_DATA_TAB}: {len(rows)} total row(s), {len(matched)} matching {target_date}.")
+    if rows and not matched:
+        sample = [r.get(COLUMN_MAP["date"]) for r in rows[:5]]
+        print(f"  Sample raw '{COLUMN_MAP['date']}' values (unparsed): {sample}")
+
+    return matched
 
 
 def build_raw_data_lookup(raw_rows):
@@ -260,6 +267,9 @@ def main():
     print(f"Reading {RAW_DATA_TAB} for {target_date_str}...")
     raw_rows = read_raw_data(sheets_service, sheet_id, target_date)
     raw_lookup = build_raw_data_lookup(raw_rows)
+    if raw_lookup:
+        sample_keys = list(raw_lookup.keys())[:3]
+        print(f"  {len(raw_lookup)} lookup key(s) built. Sample: {sample_keys}")
 
     print(f"Setting {DATE_CELL} to {target_date_str}...")
     set_report_date(sheets_service, sheet_id, target_date_str)
