@@ -1,0 +1,39 @@
+name: Daily Lecture PDF Report
+
+on:
+  schedule:
+    # 00:00 UTC = 05:30 IST — adjust to land well before you check YAMM each morning.
+    - cron: "0 0 * * *"
+  workflow_dispatch:
+    inputs:
+      date:
+        description: "Target date YYYY-MM-DD (defaults to yesterday if left blank)"
+        required: false
+        default: ""
+
+jobs:
+  generate-and-publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run daily pipeline
+        env:
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          SHEET_ID: ${{ secrets.SHEET_ID }}
+          DRIVE_FOLDER_ID: ${{ secrets.DRIVE_FOLDER_ID }}
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+        run: |
+          if [ -n "${{ github.event.inputs.date }}" ]; then
+            python daily_pdf_pipeline.py --date "${{ github.event.inputs.date }}"
+          else
+            python daily_pdf_pipeline.py
+          fi

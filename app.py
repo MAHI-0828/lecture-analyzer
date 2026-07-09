@@ -92,12 +92,12 @@ st.divider()
 # ─── Shared API key ──────────────────────────────────────────────────────────────
 
 api_key_input = st.text_input(
-    "Groq API Key",
+    "Google AI Studio API Key",
     type="password",
-    placeholder="gsk_... (or set GROQ_API_KEY env var)",
+    placeholder="AIza... (or set GOOGLE_API_KEY env var)",
 )
-st.caption("Free key from console.groq.com — never stored.")
-resolved_api_key = api_key_input or os.environ.get("GROQ_API_KEY", "")
+st.caption("Free key from aistudio.google.com/apikey — never stored.")
+resolved_api_key = api_key_input or os.environ.get("GOOGLE_API_KEY", "")
 
 st.divider()
 
@@ -153,7 +153,7 @@ with tab_screenshots:
 
     if analyze_btn and ready:
         if not resolved_api_key:
-            st.error("No API key provided. Enter it above or set the GROQ_API_KEY environment variable.")
+            st.error("No API key provided. Enter it above or set the GOOGLE_API_KEY environment variable.")
             st.stop()
 
         results = []
@@ -364,7 +364,7 @@ with tab_batch:
         disabled=not (csv_file and resolved_api_key),
     )
     if csv_file and not resolved_api_key:
-        st.info("Enter your Groq API key above to run batch analysis.")
+        st.info("Enter your Google AI Studio API key above to run batch analysis.")
 
     if run_batch and csv_file and resolved_api_key:
         st.session_state.pop("batch_report", None)  # clear previous batch report

@@ -8,8 +8,11 @@ import json
 import re
 from pathlib import Path
 
-from groq import Groq
+import requests
 from PIL import Image
+
+GEMINI_MODEL    = "gemini-2.5-flash-lite"
+GEMINI_ENDPOINT = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent"
 
 # ─── Parameter registry ─────────────────────────────────────────────────────────
 
@@ -197,29 +200,24 @@ def load_image_bytes(file_bytes: bytes, filename: str = "image.png") -> tuple:
 # ─── Analysis ────────────────────────────────────────────────────────────────────
 
 def analyze_image(api_key: str, image_data: str, media_type: str) -> dict:
-    """Send an image to Groq (Llama Vision) and return the structured JSON result."""
-    client = Groq(api_key=api_key)
-    response = client.chat.completions.create(
-        model="meta-llama/llama-4-scout-17b-16e-instruct",
-        max_tokens=4096,
-        messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {
-                "role": "user",
-                "content": [
-                    {
-                        "type": "image_url",
-                        "image_url": {"url": f"data:{media_type};base64,{image_data}"},
-                    },
-                    {
-                        "type": "text",
-                        "text": "Analyze this lecture screenshot and return the JSON evaluation.",
-                    },
+    """Send an image to Gemini (Google AI Studio) and return the structured JSON result."""
+    response = requests.post(
+        GEMINI_ENDPOINT,
+        params={"key": api_key},
+        json={
+            "systemInstruction": {"parts": [{"text": SYSTEM_PROMPT}]},
+            "contents": [{
+                "parts": [
+                    {"inlineData": {"mimeType": media_type, "data": image_data}},
+                    {"text": "Analyze this lecture screenshot and return the JSON evaluation."},
                 ],
-            },
-        ],
+            }],
+            "generationConfig": {"responseMimeType": "application/json"},
+        },
+        timeout=60,
     )
-    raw = response.choices[0].message.content.strip()
+    response.raise_for_status()
+    raw = response.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
     raw = re.sub(r"^```(?:json)?\s*", "", raw)
     raw = re.sub(r"\s*```$", "", raw)
     return json.loads(raw)

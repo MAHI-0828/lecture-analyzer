@@ -7,8 +7,8 @@ each recording, extracts evenly-spaced frames, scores them with the same
 core.analyze_image() used by app.py / analyze.py, and writes a per-session
 PDF/CSV/JSON plus a combined report_<date>.csv / .json rollup into reports/.
 
-Usage: python auto_lecture_analyzer.py --csv recordings_today.csv --api-key gsk_...
-       (or set GROQ_API_KEY env var)
+Usage: python auto_lecture_analyzer.py --csv recordings_today.csv --api-key AIza...
+       (or set GOOGLE_API_KEY env var)
 """
 
 import argparse
@@ -188,12 +188,12 @@ def main():
     parser.add_argument("--frames", type=int, default=DEFAULT_FRAME_COUNT, help="Frames to extract per recording")
     parser.add_argument("--edge-margin", type=float, default=DEFAULT_EDGE_MARGIN,
                          help="Fraction of video to skip at start/end (default: 0.03)")
-    parser.add_argument("--api-key", "-k", help="Groq API key (or set GROQ_API_KEY env var)")
+    parser.add_argument("--api-key", "-k", help="Google AI Studio API key (or set GOOGLE_API_KEY env var)")
     args = parser.parse_args()
 
-    api_key = args.api_key or os.environ.get("GROQ_API_KEY", "")
+    api_key = args.api_key or os.environ.get("GOOGLE_API_KEY", "")
     if not api_key:
-        print("Error: provide --api-key or set GROQ_API_KEY environment variable.")
+        print("Error: provide --api-key or set GOOGLE_API_KEY environment variable.")
         sys.exit(1)
 
     csv_path = Path(args.csv)
