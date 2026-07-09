@@ -50,11 +50,14 @@ YAMM_REPORT_TAB  = "YAMM Report"
 PDF_LINKS_TAB    = "PDF_Links"
 
 
-def sheet_range(tab, a1_range):
+def sheet_range(tab, a1_range=""):
     """Quote the tab name for A1 notation — required for spaces, and any literal
-    apostrophe in the name must itself be doubled inside the quotes."""
+    apostrophe in the name must itself be doubled inside the quotes. With no
+    a1_range, returns the whole-sheet form (all populated rows/columns) —
+    avoids hardcoding a column cap that real sheets can grow past."""
     escaped = tab.replace("'", "''")
-    return f"'{escaped}'!{a1_range}"
+    quoted = f"'{escaped}'"
+    return f"{quoted}!{a1_range}" if a1_range else quoted
 
 
 DATE_CELL = sheet_range(DAILY_REPORT_TAB, "B1")
@@ -102,7 +105,7 @@ def parse_sheet_date(value):
 
 def read_raw_data(sheets_service, sheet_id, target_date):
     resp = sheets_service.spreadsheets().values().get(
-        spreadsheetId=sheet_id, range=sheet_range(RAW_DATA_TAB, "A:Z")
+        spreadsheetId=sheet_id, range=sheet_range(RAW_DATA_TAB)
     ).execute()
     values = resp.get("values", [])
     if not values:
@@ -141,7 +144,7 @@ def set_report_date(sheets_service, sheet_id, target_date_str):
 
 def read_yamm_report(sheets_service, sheet_id):
     resp = sheets_service.spreadsheets().values().get(
-        spreadsheetId=sheet_id, range=sheet_range(YAMM_REPORT_TAB, "A:Z")
+        spreadsheetId=sheet_id, range=sheet_range(YAMM_REPORT_TAB)
     ).execute()
     values = resp.get("values", [])
     if not values:
