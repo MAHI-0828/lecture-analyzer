@@ -219,13 +219,28 @@ def main():
     parser.add_argument("--date", help="Target date YYYY-MM-DD (default: yesterday)")
     parser.add_argument("--frames", type=int, default=DEFAULT_FRAME_COUNT)
     parser.add_argument("--edge-margin", type=float, default=DEFAULT_EDGE_MARGIN)
+    parser.add_argument("--list-tabs", action="store_true",
+                         help="Print the exact tab names in the sheet (repr'd, to reveal stray whitespace) and exit.")
     args = parser.parse_args()
 
+    sheet_id = os.environ.get("SHEET_ID", "")
+    if not (sheet_id and os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON")):
+        print("Error: SHEET_ID and GOOGLE_SERVICE_ACCOUNT_JSON must be set.")
+        sys.exit(1)
+
+    creds = get_credentials()
+    sheets_service = build("sheets", "v4", credentials=creds)
+
+    if args.list_tabs:
+        meta = sheets_service.spreadsheets().get(spreadsheetId=sheet_id).execute()
+        for s in meta.get("sheets", []):
+            print(repr(s["properties"]["title"]))
+        return
+
     google_api_key  = os.environ.get("GOOGLE_API_KEY", "")
-    sheet_id        = os.environ.get("SHEET_ID", "")
     drive_folder_id = os.environ.get("DRIVE_FOLDER_ID", "")
-    if not (google_api_key and sheet_id and drive_folder_id and os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON")):
-        print("Error: GOOGLE_API_KEY, SHEET_ID, DRIVE_FOLDER_ID, GOOGLE_SERVICE_ACCOUNT_JSON must all be set.")
+    if not (google_api_key and drive_folder_id):
+        print("Error: GOOGLE_API_KEY and DRIVE_FOLDER_ID must be set.")
         sys.exit(1)
 
     target_date = (
@@ -235,9 +250,7 @@ def main():
     target_date_str = target_date.isoformat()
     date_compact = target_date.strftime("%Y%m%d")
 
-    creds = get_credentials()
-    sheets_service = build("sheets", "v4", credentials=creds)
-    drive_service  = build("drive", "v3", credentials=creds)
+    drive_service = build("drive", "v3", credentials=creds)
 
     print(f"Reading {RAW_DATA_TAB} for {target_date_str}...")
     raw_rows = read_raw_data(sheets_service, sheet_id, target_date)

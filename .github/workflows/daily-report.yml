@@ -10,6 +10,11 @@ on:
         description: "Target date YYYY-MM-DD (defaults to yesterday if left blank)"
         required: false
         default: ""
+      list_tabs:
+        description: "Debug: print exact sheet tab names and exit, instead of running the pipeline"
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   generate-and-publish:
@@ -32,7 +37,9 @@ jobs:
           DRIVE_FOLDER_ID: ${{ secrets.DRIVE_FOLDER_ID }}
           GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
         run: |
-          if [ -n "${{ github.event.inputs.date }}" ]; then
+          if [ "${{ github.event.inputs.list_tabs }}" = "true" ]; then
+            python daily_pdf_pipeline.py --list-tabs
+          elif [ -n "${{ github.event.inputs.date }}" ]; then
             python daily_pdf_pipeline.py --date "${{ github.event.inputs.date }}"
           else
             python daily_pdf_pipeline.py
