@@ -15,11 +15,12 @@ from PIL import Image
 GEMINI_MODEL    = "gemini-2.5-flash-lite"
 GEMINI_ENDPOINT = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent"
 
-# Free tier is 15 requests/minute — pace calls to stay comfortably under that
-# instead of firing a lecture's 8 frames back-to-back and eating 429s.
-_MIN_GEMINI_INTERVAL = 4.5
+# Free tier is nominally 15 requests/minute, but a burst of test traffic can
+# apparently get throttled harder than that — pace conservatively and give
+# retries a much longer runway before giving up on a frame.
+_MIN_GEMINI_INTERVAL = 8.0
 _last_gemini_call = 0.0
-_MAX_RETRIES = 5
+_MAX_RETRIES = 8
 
 # ─── Parameter registry ─────────────────────────────────────────────────────────
 
@@ -234,7 +235,7 @@ def analyze_image(api_key: str, image_data: str, media_type: str) -> dict:
 
         if response.status_code in (429, 503) and attempt < _MAX_RETRIES - 1:
             retry_after = response.headers.get("Retry-After")
-            backoff = float(retry_after) if retry_after else (2 ** attempt) * 2
+            backoff = float(retry_after) if retry_after else min((2 ** attempt) * 3, 60)
             time.sleep(backoff)
             continue
 

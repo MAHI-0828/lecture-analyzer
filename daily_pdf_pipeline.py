@@ -211,15 +211,25 @@ def verify_drive_folder(drive_service, folder_id, creds):
     print(f"  Drive folder OK: {meta.get('name')!r}")
 
 
-def upload_pdf_to_drive(drive_service, pdf_path, folder_id):
-    media = MediaFileUpload(str(pdf_path), mimetype="application/pdf")
-    file = drive_service.files().create(
-        body={"name": pdf_path.name, "parents": [folder_id]},
-        media_body=media,
-        fields="id, webViewLink",
-        supportsAllDrives=True,
-    ).execute()
-    return file["webViewLink"]
+def upload_pdf_to_drive(drive_service, pdf_path, folder_id, max_retries=4):
+    """Retries on transient network errors (e.g. a runner-side SSL reset shouldn't kill
+    a whole multi-lecture batch over one flaky upload)."""
+    for attempt in range(max_retries):
+        try:
+            media = MediaFileUpload(str(pdf_path), mimetype="application/pdf")
+            file = drive_service.files().create(
+                body={"name": pdf_path.name, "parents": [folder_id]},
+                media_body=media,
+                fields="id, webViewLink",
+                supportsAllDrives=True,
+            ).execute()
+            return file["webViewLink"]
+        except Exception as e:
+            if attempt == max_retries - 1:
+                raise
+            backoff = (2 ** attempt) * 5
+            print(f"    Upload attempt {attempt + 1} failed ({e}), retrying in {backoff}s...")
+            time.sleep(backoff)
 
 
 def ensure_tab_exists(sheets_service, sheet_id, tab, header):
@@ -337,23 +347,23 @@ def main():
 
         try:
             session = process_session(session_row, google_api_key, args.frames, args.edge_margin)
+            if session is None:
+                continue
+
+            write_session_reports(session, reports_dir, date_compact)
+
+            slug = f"{session['batch']}_{session['module']}_{session['session_id']}".replace(" ", "-").replace("/", "-")
+            pdf_path = reports_dir / f"{slug}_{date_compact}.pdf"
+            if not pdf_path.exists():
+                print(f"  PDF missing for session {session['session_id']}, skipping upload.")
+                continue
+
+            print(f"  Uploading {pdf_path.name} to Drive...")
+            drive_link = upload_pdf_to_drive(drive_service, pdf_path, drive_folder_id)
+            pdf_link_rows.append([target_date_str, session["session_id"], instructor_email, session["module"], drive_link])
         except Exception as e:
             print(f"  FAILED session {session_row.get('session_id', '?')}: {e}")
             continue
-        if session is None:
-            continue
-
-        write_session_reports(session, reports_dir, date_compact)
-
-        slug = f"{session['batch']}_{session['module']}_{session['session_id']}".replace(" ", "-").replace("/", "-")
-        pdf_path = reports_dir / f"{slug}_{date_compact}.pdf"
-        if not pdf_path.exists():
-            print(f"  PDF missing for session {session['session_id']}, skipping upload.")
-            continue
-
-        print(f"  Uploading {pdf_path.name} to Drive...")
-        drive_link = upload_pdf_to_drive(drive_service, pdf_path, drive_folder_id)
-        pdf_link_rows.append([target_date_str, session["session_id"], instructor_email, session["module"], drive_link])
 
     if pdf_link_rows:
         print(f"Writing {len(pdf_link_rows)} row(s) to {PDF_LINKS_TAB}...")
