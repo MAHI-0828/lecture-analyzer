@@ -41,7 +41,10 @@ from auto_lecture_analyzer import (
 
 SCOPES = [
     "https://www.googleapis.com/auth/spreadsheets",
-    "https://www.googleapis.com/auth/drive.file",
+    # NOT drive.file — that scope only sees files the app itself created, not
+    # a folder a human shared with the service account via the Share dialog.
+    # That mismatch caused a 404 across every folder/account tried.
+    "https://www.googleapis.com/auth/drive",
 ]
 
 RAW_DATA_TAB     = "Raw Data'"  # yes, the sheet's real tab name has a trailing apostrophe
