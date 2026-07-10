@@ -185,6 +185,29 @@ def to_session_row(raw_row):
     }
 
 
+def verify_drive_folder(drive_service, folder_id, creds):
+    """Fail fast with an actionable message instead of a bare 404 after a full lecture already processed."""
+    looks_like_url = "http" in folder_id.lower() or "/" in folder_id
+    print(f"  Checking Drive folder access (id length={len(folder_id)}, "
+          f"has_whitespace={folder_id != folder_id.strip()}, looks_like_url={looks_like_url})...")
+    try:
+        meta = drive_service.files().get(
+            fileId=folder_id.strip(), fields="id, name, mimeType", supportsAllDrives=True
+        ).execute()
+    except Exception as e:
+        print(f"  ERROR: service account cannot access DRIVE_FOLDER_ID={folder_id!r}: {e}")
+        print(f"  Fix: share that Drive folder (Editor) with the service account: {creds.service_account_email}")
+        print(f"  Also confirm DRIVE_FOLDER_ID is just the ID segment from the folder URL, not the full URL.")
+        raise
+
+    if meta.get("mimeType") != "application/vnd.google-apps.folder":
+        raise RuntimeError(
+            f"DRIVE_FOLDER_ID={folder_id!r} points to a {meta.get('mimeType')} named {meta.get('name')!r}, "
+            f"not a folder."
+        )
+    print(f"  Drive folder OK: {meta.get('name')!r}")
+
+
 def upload_pdf_to_drive(drive_service, pdf_path, folder_id):
     media = MediaFileUpload(str(pdf_path), mimetype="application/pdf")
     file = drive_service.files().create(
@@ -271,6 +294,7 @@ def main():
     date_compact = target_date.strftime("%Y%m%d")
 
     drive_service = build("drive", "v3", credentials=creds)
+    verify_drive_folder(drive_service, drive_folder_id, creds)
 
     print(f"Reading {RAW_DATA_TAB} for {target_date_str}...")
     raw_rows = read_raw_data(sheets_service, sheet_id, target_date)
