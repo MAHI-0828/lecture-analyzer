@@ -6,6 +6,7 @@ import base64
 import io
 import json
 import re
+import time
 from pathlib import Path
 
 import requests
@@ -13,6 +14,12 @@ from PIL import Image
 
 GEMINI_MODEL    = "gemini-2.5-flash-lite"
 GEMINI_ENDPOINT = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent"
+
+# Free tier is 15 requests/minute — pace calls to stay comfortably under that
+# instead of firing a lecture's 8 frames back-to-back and eating 429s.
+_MIN_GEMINI_INTERVAL = 4.5
+_last_gemini_call = 0.0
+_MAX_RETRIES = 5
 
 # ─── Parameter registry ─────────────────────────────────────────────────────────
 
@@ -201,26 +208,41 @@ def load_image_bytes(file_bytes: bytes, filename: str = "image.png") -> tuple:
 
 def analyze_image(api_key: str, image_data: str, media_type: str) -> dict:
     """Send an image to Gemini (Google AI Studio) and return the structured JSON result."""
-    response = requests.post(
-        GEMINI_ENDPOINT,
-        params={"key": api_key},
-        json={
-            "systemInstruction": {"parts": [{"text": SYSTEM_PROMPT}]},
-            "contents": [{
-                "parts": [
-                    {"inlineData": {"mimeType": media_type, "data": image_data}},
-                    {"text": "Analyze this lecture screenshot and return the JSON evaluation."},
-                ],
-            }],
-            "generationConfig": {"responseMimeType": "application/json"},
-        },
-        timeout=60,
-    )
-    response.raise_for_status()
-    raw = response.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
-    raw = re.sub(r"^```(?:json)?\s*", "", raw)
-    raw = re.sub(r"\s*```$", "", raw)
-    return json.loads(raw)
+    global _last_gemini_call
+
+    for attempt in range(_MAX_RETRIES):
+        wait = _MIN_GEMINI_INTERVAL - (time.time() - _last_gemini_call)
+        if wait > 0:
+            time.sleep(wait)
+        _last_gemini_call = time.time()
+
+        response = requests.post(
+            GEMINI_ENDPOINT,
+            params={"key": api_key},
+            json={
+                "systemInstruction": {"parts": [{"text": SYSTEM_PROMPT}]},
+                "contents": [{
+                    "parts": [
+                        {"inlineData": {"mimeType": media_type, "data": image_data}},
+                        {"text": "Analyze this lecture screenshot and return the JSON evaluation."},
+                    ],
+                }],
+                "generationConfig": {"responseMimeType": "application/json"},
+            },
+            timeout=60,
+        )
+
+        if response.status_code in (429, 503) and attempt < _MAX_RETRIES - 1:
+            retry_after = response.headers.get("Retry-After")
+            backoff = float(retry_after) if retry_after else (2 ** attempt) * 2
+            time.sleep(backoff)
+            continue
+
+        response.raise_for_status()
+        raw = response.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
+        raw = re.sub(r"^```(?:json)?\s*", "", raw)
+        raw = re.sub(r"\s*```$", "", raw)
+        return json.loads(raw)
 
 
 # ─── CSV helpers ─────────────────────────────────────────────────────────────────
