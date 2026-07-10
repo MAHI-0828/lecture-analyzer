@@ -217,6 +217,7 @@ def upload_pdf_to_drive(drive_service, pdf_path, folder_id):
         body={"name": pdf_path.name, "parents": [folder_id]},
         media_body=media,
         fields="id, webViewLink",
+        supportsAllDrives=True,
     ).execute()
     return file["webViewLink"]
 
