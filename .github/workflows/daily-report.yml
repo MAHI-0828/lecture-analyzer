@@ -1,9 +1,12 @@
 name: Daily Lecture PDF Report
 
 on:
-  schedule:
-    # 00:00 UTC = 05:30 IST — adjust to land well before you check YAMM each morning.
-    - cron: "0 0 * * *"
+  # schedule trigger disabled — this pipeline was hitting the Gemini free-tier
+  # rate limit and running past the 120min timeout most nights (see repo
+  # history). Superseded by the ta-session-analyzer Streamlit app. Kept as
+  # workflow_dispatch only so it can still be run manually if ever needed.
+  # schedule:
+  #   - cron: "0 0 * * *"
   workflow_dispatch:
     inputs:
       date:
